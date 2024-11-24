@@ -1,0 +1,107 @@
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.model_selection import cross_val_score
+
+# 1. Load the dataset
+# Replace with your actual file path to database_24_25.csv
+df = pd.read_csv("database_24_25.csv")
+
+# Inspect the first few rows and column names
+print(df.head())  # Preview of the first few rows
+print(df.columns)  # Check column names to ensure accuracy
+
+# 2. Data Preprocessing
+
+# Handle missing values by either filling or dropping rows
+# Here we drop rows with missing values (customize this based on your needs)
+df = df.dropna()
+
+# 3. Encode categorical variables
+# Encode team names using LabelEncoder
+le = LabelEncoder()
+df['Tm'] = le.fit_transform(df['Tm'])  # Home team encoding
+df['Opp'] = le.fit_transform(df['Opp'])  # Opponent team encoding
+
+# 4. Feature Selection
+# Select relevant features for predicting match results
+X = df[['Tm', 'Opp', 'MP', 'FG', 'FGA', '3P', '3PA', 'FT', 'FTA', 'ORB', 'DRB', 'TRB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'GmSc']]
+y = df['Res']  # Assuming 'Res' contains the match results (win/loss/draw)
+
+# 5. Feature Scaling
+# Standardize the features using StandardScaler
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# 6. Train-Test Split
+# Split the dataset into 70% training and 30% testing
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
+
+# 7. Model Training
+# Initialize RandomForestClassifier with 100 estimators (trees)
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+
+# Train the model on the training data
+model.fit(X_train, y_train)
+
+# 8. Model Evaluation on the Test Set
+# Make predictions on the test set
+y_pred = model.predict(X_test)
+
+# Calculate accuracy of the model
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy * 100:.2f}%')
+
+# Confusion Matrix and Classification Report for detailed evaluation
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+# 9. Cross-Validation
+# Perform cross-validation to assess model stability
+cross_val_scores = cross_val_score(model, X_train, y_train, cv=5)
+print(f'Cross-validation scores: {cross_val_scores}')
+print(f'Mean cross-validation score: {np.mean(cross_val_scores):.2f}')
+
+# 10. Hyperparameter Tuning with GridSearchCV
+# Define the hyperparameter grid to tune
+param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [5, 10, None],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4]
+}
+
+# Perform grid search to find the best hyperparameters
+grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=5, n_jobs=-1, verbose=2)
+grid_search.fit(X_train, y_train)
+
+# Print the best hyperparameters from the grid search
+print("Best Hyperparameters from Grid Search:")
+print(grid_search.best_params_)
+
+# 11. Retraining with Best Hyperparameters
+# Retrain the model with the best parameters found from grid search
+best_model = grid_search.best_estimator_
+best_model.fit(X_train, y_train)
+
+# 12. Final Evaluation on Test Set
+# Predict on the test set using the best model
+y_pred_final = best_model.predict(X_test)
+
+# Final accuracy of the best model
+final_accuracy = accuracy_score(y_test, y_pred_final)
+print(f'Final Accuracy after Hyperparameter Tuning: {final_accuracy * 100:.2f}%')
+
+# Final Confusion Matrix and Classification Report
+print("Final Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_final))
+
+print("\nFinal Classification Report:")
+print(classification_report(y_test, y_pred_final))
